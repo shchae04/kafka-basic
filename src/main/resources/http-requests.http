@@ -1,0 +1,33 @@
+###  기본 메시지 전송 (트랜잭션 없음)
+# ProducerService를 사용한 일반적인 메시지 전송
+# 메시지가 개별적으로 전송되며, 실패해도 다른 메시지에 영향 없음
+POST http://localhost:8080/api/send?msg=Hello
+
+###  트랜잭션 메시지 전송 - 기본 테스트
+# 3개 메시지를 하나의 트랜잭션으로 전송
+# 모든 메시지가 성공하거나 모두 실패함 (All or Nothing)
+POST http://localhost:8080/api/send-transaction?messages=msg1,msg2,msg3
+
+###  트랜잭션 메시지 전송 (성공 케이스)
+# 정상적인 트랜잭션 처리를 확인하는 테스트
+# 3개 메시지 모두 "transaction-topic"에 성공적으로 전송됨
+# 로그에서 "Transaction committed successfully" 메시지 확인 가능
+POST http://localhost:8080/api/send-transaction?messages=Transaction1,Transaction2,Transaction3
+
+###  트랜잭션 실패 시뮬레이션 (1번째 메시지 후 실패)
+# Fail1 메시지 전송 후 의도적으로 예외 발생
+# 결과: Fail1도 롤백되어 어떤 메시지도 토픽에 저장되지 않음
+# 로그에서 "Transaction failed and rolled back" 메시지 확인
+POST http://localhost:8080/api/simulate-transaction-failure?messages=Fail1,Fail2,Fail3&failAfter=1
+
+###  트랜잭션 실패 시뮬레이션 (2번째 메시지 후 실패)
+# Fail1, Fail2 메시지 전송 후 의도적으로 예외 발생
+# 결과: 이미 전송된 Fail1, Fail2도 롤백되어 토픽에서 제거됨
+# Kafka 트랜잭션의 원자성(Atomicity) 보장을 확인하는 테스트
+POST http://localhost:8080/api/simulate-transaction-failure?messages=Fail1,Fail2,Fail3&failAfter=2
+
+###
+#  테스트 결과 확인 방법:
+# 1. 콘솔 로그에서 "Sent in transaction", "Transaction committed", "Transaction failed" 메시지 확인
+# 2. Consumer 로그에서 실제로 수신된 메시지 확인 (실패한 트랜잭션의 메시지는 수신되지 않음)
+# 3. Kafka UI나 CLI로 토픽 내용 직접 확인
