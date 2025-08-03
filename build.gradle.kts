@@ -26,17 +26,13 @@ dependencies {
 
     implementation("org.springframework.kafka:spring-kafka")
     implementation("org.apache.kafka:kafka-streams")
-    
-    // Resilience4j 의존성
+
     implementation("io.github.resilience4j:resilience4j-spring-boot3:2.2.0")
     implementation("io.github.resilience4j:resilience4j-retry:2.2.0")
     implementation("io.github.resilience4j:resilience4j-circuitbreaker:2.2.0")
-    implementation("io.github.resilience4j:resilience4j-kafka:2.2.0")
     implementation("org.springframework.boot:spring-boot-starter-aop") // Resilience4j에 필요한 AOP 지원
-    
-    // 이전 재시도 메커니즘 (Spring Retry) - 호환성을 위해 유지
-    implementation("org.springframework.retry:spring-retry")
-    
+
+
     testImplementation("org.springframework.boot:spring-boot-starter-test")
     testImplementation("org.springframework.kafka:spring-kafka-test")
     testRuntimeOnly("org.junit.platform:junit-platform-launcher")

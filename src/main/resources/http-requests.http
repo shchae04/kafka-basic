@@ -163,3 +163,98 @@ GET http://localhost:8080/actuator/health
 ### Swagger UI 접근
 # API 문서 확인
 GET http://localhost:8080/swagger-ui.html
+
+### ============= 오류 처리 및 복원력 테스트 =============
+
+### 재시도 패턴 테스트 (RuntimeException)
+# "error"를 포함한 메시지는 RuntimeException을 발생시키고 Resilience4j에 의해 재시도됨
+# 결과: 3번 재시도 후 실패하면 DLQ로 전송
+# 로그에서 재시도 시도 및 "Resilience4j 폴백 처리" 메시지 확인 가능
+POST http://localhost:8080/api/streams/user-data
+Content-Type: application/json
+
+{
+  "id": "error-test",
+  "name": "Error Test",
+  "email": "error@example.com",
+  "data": "This message contains error and will trigger RuntimeException"
+}
+
+### 재시도 없는 예외 테스트 (IllegalArgumentException)
+# "invalid"를 포함한 메시지는 IllegalArgumentException을 발생시키고 재시도 없이 바로 DLQ로 전송됨
+# 결과: 재시도 없이 바로 DLQ로 전송
+# 로그에서 "유효하지 않은 메시지 감지" 메시지 확인 가능
+POST http://localhost:8080/api/streams/user-data
+Content-Type: application/json
+
+{
+  "id": "invalid-test",
+  "name": "Invalid Test",
+  "email": "invalid@example.com",
+  "data": "This message contains invalid data and will not be retried"
+}
+
+### 서킷 브레이커 패턴 테스트
+# 여러 번 연속으로 실행하여 서킷 브레이커를 열도록 함
+# 결과: 10번 이상의 호출 중 50% 이상 실패 시 서킷 오픈
+# 서킷이 열리면 이후 요청은 즉시 폴백 메서드로 라우팅됨 (재시도 없음)
+# 로그에서 "CircuitBreaker 'kafkaConsumer' is OPEN" 메시지 확인 가능
+POST http://localhost:8080/api/streams/user-data
+Content-Type: application/json
+
+{
+  "id": "circuit-test",
+  "name": "Circuit Test",
+  "email": "circuit@example.com",
+  "data": "This message contains error and will help trip the circuit breaker"
+}
+
+### 서킷 브레이커 상태 확인
+# 서킷 브레이커의 현재 상태 확인
+# 결과: 서킷 브레이커의 상태(CLOSED, OPEN, HALF_OPEN)와 통계 정보 확인 가능
+GET http://localhost:8080/actuator/circuitbreakers
+
+### 벌크헤드 패턴 테스트
+# 동시에 많은 요청을 보내 벌크헤드 제한을 테스트
+# 결과: 20개 이상의 동시 요청 시 일부 요청은 거부됨
+# 로그에서 "Bulkhead 'kafkaConsumer' is full" 메시지 확인 가능
+# 참고: 이 테스트는 여러 클라이언트에서 동시에 실행해야 효과적임
+POST http://localhost:8080/api/streams/user-data
+Content-Type: application/json
+
+{
+  "id": "bulkhead-test",
+  "name": "Bulkhead Test",
+  "email": "bulkhead@example.com",
+  "data": "Testing bulkhead pattern with concurrent requests"
+}
+
+### 벌크헤드 상태 확인
+# 벌크헤드의 현재 상태 확인
+# 결과: 벌크헤드의 설정 및 현재 사용량 확인 가능
+GET http://localhost:8080/actuator/bulkheads
+
+### 재시도 상태 확인
+# 재시도 메커니즘의 현재 상태 확인
+# 결과: 재시도 설정 및 통계 정보 확인 가능
+GET http://localhost:8080/actuator/retries
+
+### DLQ 메시지 확인 방법
+# 1. Kafka 클라이언트 도구를 사용하여 DLQ 토픽의 메시지 확인
+#    예: kafka-console-consumer --bootstrap-server localhost:9092 --topic user-data-input.DLQ --from-beginning
+# 2. 또는 다음 API를 사용하여 토픽 메시지 수 확인
+GET http://localhost:8080/api/kafka/topics/user-data-input.DLQ/messages
+
+### 정상 메시지 처리 테스트 (비교용)
+# 오류나 유효하지 않은 내용이 없는 정상 메시지
+# 결과: 메시지가 정상적으로 처리되고 DLQ로 전송되지 않음
+# 로그에서 "메시지 정상 처리 완료" 메시지 확인 가능
+POST http://localhost:8080/api/streams/user-data
+Content-Type: application/json
+
+{
+  "id": "normal-test",
+  "name": "Normal Test",
+  "email": "normal@example.com",
+  "data": "This is a normal message that will be processed successfully"
+}

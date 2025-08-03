@@ -33,7 +33,6 @@ public class Resilience4jConfig {
     public RetryRegistry kafkaRetryRegistry() {
         RetryConfig retryConfig = RetryConfig.custom()
                 .maxAttempts(3)
-                .waitDuration(Duration.ofMillis(1000))
                 .retryExceptions(RuntimeException.class)
                 .ignoreExceptions(IllegalArgumentException.class)
                 .intervalFunction(attempt -> Math.min(
