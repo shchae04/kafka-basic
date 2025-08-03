@@ -1,30 +1,186 @@
 spring:
   kafka:
-    # Kafka ??? ?? ?? ??
+    # Kafka 브로커 서버 주소 설정
+    # 애플리케이션이 Kafka 클러스터에 연결하기 위한 부트스트랩 서버 목록
     bootstrap-servers: localhost:9092
 
     producer:
-      # Producer? ???? ???? ?? ????? ??? ??
+      # Producer가 메시지 전송시 키 직렬화에 사용할 클래스
+      # 메시지 키를 바이트 배열로 변환하는 직렬화 방식 지정
       key-serializer: org.apache.kafka.common.serialization.StringSerializer
-      # Producer? ???? ???? ?? ????? ??? ??
+      # Producer가 메시지 전송시 값 직렬화에 사용할 클래스
+      # 메시지 값을 바이트 배열로 변환하는 직렬화 방식 지정
       value-serializer: org.apache.kafka.common.serialization.StringSerializer
+      # Producer 추가 속성 설정
+      properties:
+        # 토픽이 존재하지 않을 경우 자동 생성 활성화
+        # true로 설정하면 지정한 토픽이 없을 때 자동으로 생성됨
+        allow.auto.create.topics: true
 
     consumer:
-      # Consumer ??? ?? ??? ??
+      # Consumer 그룹 식별 그룹 아이디
+      # 동일한 그룹 ID를 가진 Consumer들은 토픽의 파티션을 분배하여 소비
       group-id: basic-group
-      # Consumer? ?? ??? ??? ? ?? offset ?? ?? (earliest: ?? ????)
+      # Consumer가 새로 생성된 경우 등 초기 offset 읽기 설정
+      # latest: 가장 최근 메시지부터 읽기 (기본값)
+      # earliest: 가장 처음부터 읽기
       auto-offset-reset: latest
-      # Consumer? ???? ???? ?? ?????? ??? ??
+      # Consumer가 메시지 수신시 키 역직렬화에 사용할 클래스
+      # 바이트 배열을 메시지 키로 변환하는 역직렬화 방식 지정
       key-deserializer: org.apache.kafka.common.serialization.StringDeserializer
-      # Consumer? ???? ???? ?? ?????? ??? ??
+      # Consumer가 메시지 수신시 값 역직렬화에 사용할 클래스
+      # 바이트 배열을 메시지 값으로 변환하는 역직렬화 방식 지정
       value-deserializer: org.apache.kafka.common.serialization.StringDeserializer
+      # Consumer 추가 속성 설정
+      properties:
+        # 토픽이 존재하지 않을 경우 자동 생성 활성화
+        # true로 설정하면 구독하려는 토픽이 없을 때 자동으로 생성됨
+        allow.auto.create.topics: true
+      
+    streams:
+      # Kafka Streams 애플리케이션 ID
+      # 스트림 처리 애플리케이션의 고유 식별자로 사용됨
+      application-id: kafka-streams-app
+      # Kafka Streams 상태 저장소 디렉토리
+      # 스트림 처리 중 상태 정보를 저장하는 로컬 디렉토리 경로
+      state-dir: /tmp/kafka-streams
+      # 기본 키 Serde 클래스
+      # Serde는 Serializer와 Deserializer의 조합으로, 키의 직렬화/역직렬화에 사용
+      default-key-serde: org.apache.kafka.common.serialization.Serdes$StringSerde
+      # 기본 값 Serde 클래스
+      # 값의 직렬화/역직렬화에 사용되는 Serde 클래스
+      default-value-serde: org.apache.kafka.common.serialization.Serdes$StringSerde
+      # 처리 보장 설정 및 추가 속성
+      properties:
+        # 정확히 한 번 처리 보장
+        # exactly_once_v2: 메시지가 정확히 한 번만 처리되도록 보장 (중복 처리 방지)
+        processing.guarantee: exactly_once_v2
+        # 토픽이 존재하지 않을 경우 자동 생성 활성화
+        # true로 설정하면 스트림 처리에 필요한 토픽이 없을 때 자동으로 생성됨
+        allow.auto.create.topics: true
+        
+    # 리스너 설정
+    listener:
+      # 존재하지 않는 토픽에 대한 리스너가 애플리케이션 시작을 방해하지 않도록 설정
+      # false로 설정하면 구독하려는 토픽이 없어도 애플리케이션이 시작됨
+      missing-topics-fatal: false
 
 server:
-  # ? ?????? ??? ???? ?? ??
+  # 애플리케이션 서버가 사용할 포트 설정
+  # 기본값은 8080이며, 다른 애플리케이션과 충돌을 피하기 위해 변경 가능
   port: 8080
 
-# ?? ?? ?? (????)
+# 로깅 설정
+# 애플리케이션의 로깅 레벨을 패키지별로 설정
 logging:
   level:
+    # Spring Kafka 관련 로그는 INFO 레벨로 설정 (기본 정보 로깅)
     org.springframework.kafka: INFO
+    # Apache Kafka 관련 로그는 WARN 레벨로 설정 (경고 이상만 로깅)
     org.apache.kafka: WARN
+
+# Spring Actuator 설정
+# 애플리케이션 모니터링 및 관리를 위한 엔드포인트 설정
+management:
+  endpoints:
+    web:
+      # 노출할 Actuator 엔드포인트 설정
+      # health: 애플리케이션 건강 상태
+      # info: 애플리케이션 정보
+      # metrics: 애플리케이션 메트릭
+      # circuitbreakers, retries, bulkheads: Resilience4j 모니터링 엔드포인트
+      exposure:
+        include: health,info,metrics,circuitbreakers,retries,bulkheads
+      # Actuator 엔드포인트의 기본 경로 설정
+      base-path: /actuator
+  endpoint:
+    health:
+      # 상세한 건강 상태 정보 표시 설정
+      show-details: always
+      # 개별 컴포넌트의 건강 상태 표시 설정
+      show-components: always
+      # Kubernetes 등의 프로브 지원 활성화
+      probes:
+        enabled: true
+  health:
+    # Kafka 건강 상태 확인 활성화
+    kafka:
+      enabled: true
+    # Resilience4j 서킷 브레이커 건강 상태 확인 활성화
+    circuitbreakers:
+      enabled: true
+    # Resilience4j 재시도 건강 상태 확인 활성화
+    retries:
+      enabled: true
+    # Resilience4j 벌크헤드 건강 상태 확인 활성화
+    bulkheads:
+      enabled: true
+
+# Resilience4j 설정
+# 장애 허용 및 복원력 패턴을 위한 Resilience4j 라이브러리 설정
+resilience4j:
+  # 재시도 패턴 설정
+  # 일시적인 오류 발생 시 자동으로 재시도하는 기능
+  retry:
+    instances:
+      # Kafka 컨슈머를 위한 재시도 설정
+      kafkaConsumer:
+        # 최대 재시도 횟수 (초기 시도 + 재시도 횟수)
+        # 3으로 설정 시 초기 1회 + 재시도 2회 = 총 3회 시도
+        maxAttempts: 3
+        # 재시도 간 대기 시간
+        # 지수 백오프가 비활성화된 경우 항상 이 값으로 대기
+        waitDuration: 1s
+        # 재시도를 트리거하는 예외 목록
+        # 여기에 나열된 예외가 발생하면 재시도 수행
+        retryExceptions:
+          - java.lang.RuntimeException
+        # 재시도하지 않을 예외 목록
+        # 여기에 나열된 예외가 발생하면 즉시 실패 처리
+        ignoreExceptions:
+          - java.lang.IllegalArgumentException
+        # 지수 백오프 활성화 여부
+        # true로 설정 시 재시도 간격이 점점 증가
+        enableExponentialBackoff: true
+        # 지수 백오프 승수
+        # 각 재시도마다 대기 시간에 이 값을 곱함 (2로 설정 시 1s, 2s, 4s, ...)
+        exponentialBackoffMultiplier: 2
+        
+  # 서킷 브레이커 패턴 설정
+  # 연속적인 오류 발생 시 서킷을 열어 시스템 과부하 방지
+  circuitbreaker:
+    instances:
+      # Kafka 컨슈머를 위한 서킷 브레이커 설정
+      kafkaConsumer:
+        # 서킷을 열기 위한 실패율 임계값 (%)
+        # 50으로 설정 시 50% 이상 실패하면 서킷 오픈
+        failureRateThreshold: 50
+        # 실패율을 계산하기 위한 최소 호출 수
+        # 이 횟수 이상 호출된 후에만 실패율 계산
+        minimumNumberOfCalls: 10
+        # 서킷이 열린 상태에서 닫힌 상태로 전환되기까지의 대기 시간
+        # 이 시간이 지나면 서킷이 반열림(Half-Open) 상태로 전환
+        waitDurationInOpenState: 30s
+        # 서킷이 반열림 상태일 때 허용되는 호출 수
+        # 이 횟수만큼 성공적으로 호출되면 서킷이 닫힘
+        permittedNumberOfCallsInHalfOpenState: 5
+        # 슬라이딩 윈도우 유형 (COUNT_BASED 또는 TIME_BASED)
+        # COUNT_BASED: 최근 N번의 호출을 기준으로 실패율 계산
+        # TIME_BASED: 최근 N초 동안의 호출을 기준으로 실패율 계산
+        slidingWindowType: COUNT_BASED
+        # 슬라이딩 윈도우 크기
+        # COUNT_BASED일 경우 호출 횟수, TIME_BASED일 경우 초 단위
+        slidingWindowSize: 10
+        
+  # 벌크헤드 패턴 설정
+  # 동시 요청 수를 제한하여 시스템 리소스 보호
+  bulkhead:
+    instances:
+      # Kafka 컨슈머를 위한 벌크헤드 설정
+      kafkaConsumer:
+        # 최대 동시 호출 수
+        # 이 값을 초과하는 호출은 대기하거나 거부됨
+        maxConcurrentCalls: 20
+        # 최대 대기 시간
+        # 호출이 이 시간 이상 대기해야 하는 경우 거부됨
+        maxWaitDuration: 1s

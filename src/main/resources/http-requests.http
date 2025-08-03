@@ -31,3 +31,135 @@ POST http://localhost:8080/api/simulate-transaction-failure?messages=Fail1,Fail2
 # 1. 콘솔 로그에서 "Sent in transaction", "Transaction committed", "Transaction failed" 메시지 확인
 # 2. Consumer 로그에서 실제로 수신된 메시지 확인 (실패한 트랜잭션의 메시지는 수신되지 않음)
 # 3. Kafka UI나 CLI로 토픽 내용 직접 확인
+
+### ============= Kafka Streams 예제 테스트 =============
+
+### Kafka Streams 상태 확인
+# Kafka Streams 애플리케이션의 현재 상태 확인
+GET http://localhost:8080/api/streams/status
+
+### 단어 수 세기 예제 - 메시지 전송
+# 단어 수 세기 예제에 텍스트 메시지 전송
+# 메시지는 word-count-input 토픽으로 전송되어 처리됨
+POST http://localhost:8080/api/streams/word-count
+Content-Type: text/plain
+
+Hello Kafka Streams! Kafka Streams is a powerful library for building streaming applications.
+
+### 단어 수 세기 예제 - 특정 단어 카운트 조회
+# 특정 단어의 출현 횟수 조회 (예: "kafka")
+# 상태 저장소에서 해당 단어의 카운트를 조회함
+GET http://localhost:8080/api/streams/word-count/kafka
+
+### 단어 수 세기 예제 - 다른 단어 카운트 조회
+# 다른 단어의 출현 횟수 조회 (예: "streams")
+GET http://localhost:8080/api/streams/word-count/streams
+
+### 사용자 데이터 변환 예제 - JSON 데이터 전송
+# 사용자 데이터를 JSON 형식으로 전송
+# 데이터는 user-data-input 토픽으로 전송되어 변환 처리됨
+POST http://localhost:8080/api/streams/user-data
+Content-Type: application/json
+
+{
+  "id": "123",
+  "name": "홍길동",
+  "email": "hong@example.com",
+  "age": 30,
+  "address": "서울시 강남구"
+}
+
+### 트랜잭션 필터링 예제 - 고액 트랜잭션 데이터 전송
+# 고액 트랜잭션 데이터 전송 (100만원 이상)
+# high-amount-transactions 토픽으로 라우팅됨
+POST http://localhost:8080/api/streams/transaction
+Content-Type: application/json
+
+{
+  "transactionId": "tx123",
+  "amount": 1500000,
+  "timestamp": "2025-08-02T10:30:00",
+  "userId": "user456"
+}
+
+### 트랜잭션 필터링 예제 - 중간 금액 트랜잭션 데이터 전송
+# 중간 금액 트랜잭션 데이터 전송 (10만원 이상 100만원 미만)
+# medium-amount-transactions 토픽으로 라우팅됨
+POST http://localhost:8080/api/streams/transaction
+Content-Type: application/json
+
+{
+  "transactionId": "tx456",
+  "amount": 500000,
+  "timestamp": "2025-08-02T11:45:00",
+  "userId": "user789"
+}
+
+### 트랜잭션 필터링 예제 - 소액 트랜잭션 데이터 전송
+# 소액 트랜잭션 데이터 전송 (10만원 미만)
+# low-amount-transactions 토픽으로 라우팅됨
+POST http://localhost:8080/api/streams/transaction
+Content-Type: application/json
+
+{
+  "transactionId": "tx789",
+  "amount": 50000,
+  "timestamp": "2025-08-02T14:20:00",
+  "userId": "user123"
+}
+
+### ============= 이벤트 알림 예제 테스트 =============
+
+### 이벤트 알림 예제 - 중요 이벤트 전송
+# 중요 이벤트 전송 (priority > 5)
+# notifications-output 토픽으로 라우팅됨
+POST http://localhost:8080/api/streams/event
+Content-Type: application/json
+
+{
+  "id": "evt123",
+  "type": "alert",
+  "priority": 8,
+  "message": "시스템 경고: 디스크 공간 부족",
+  "timestamp": "2025-08-02T15:30:00"
+}
+
+### 이벤트 알림 예제 - 일반 이벤트 전송
+# 일반 이벤트 전송 (priority <= 5)
+# 필터링되어 출력 토픽으로 전송되지 않음
+POST http://localhost:8080/api/streams/event
+Content-Type: application/json
+
+{
+  "id": "evt456",
+  "type": "info",
+  "priority": 3,
+  "message": "일반 정보: 백업 완료",
+  "timestamp": "2025-08-02T16:45:00"
+}
+
+### ============= 관리 API 테스트 =============
+
+### 대시보드 페이지 접근
+# 카프카 토픽 및 스트림 상태를 시각적으로 보여주는 대시보드 페이지
+GET http://localhost:8080/dashboard
+
+### 모든 토픽 목록 조회
+# 카프카 브로커에 있는 모든 토픽 목록 조회
+GET http://localhost:8080/api/kafka/topics
+
+### 특정 토픽 정보 조회
+# 특정 토픽의 파티션 수, 복제 팩터 등 상세 정보 조회
+GET http://localhost:8080/api/kafka/topics/word-count-output
+
+### 토픽 메시지 수 조회
+# 특정 토픽의 메시지 수 추정
+GET http://localhost:8080/api/kafka/topics/word-count-input/messages
+
+### 헬스 체크
+# 카프카 브로커 및 스트림 상태 확인
+GET http://localhost:8080/actuator/health
+
+### Swagger UI 접근
+# API 문서 확인
+GET http://localhost:8080/swagger-ui.html

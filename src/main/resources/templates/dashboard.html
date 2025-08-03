@@ -1,0 +1,201 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Kafka 대시보드</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+    <style>
+        .topic-card {
+            margin-bottom: 20px;
+            transition: transform 0.2s;
+        }
+        .topic-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+        }
+        .status-badge {
+            font-size: 0.8rem;
+            padding: 0.3rem 0.6rem;
+        }
+        .status-running {
+            background-color: #28a745;
+        }
+        .status-not-running {
+            background-color: #dc3545;
+        }
+        .topic-group {
+            margin-bottom: 30px;
+        }
+        .topic-list {
+            max-height: 300px;
+            overflow-y: auto;
+        }
+    </style>
+</head>
+<body>
+    <nav class="navbar navbar-expand-lg navbar-dark bg-dark">
+        <div class="container">
+            <a class="navbar-brand" href="/dashboard">Kafka 대시보드</a>
+            <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
+                <span class="navbar-toggler-icon"></span>
+            </button>
+            <div class="collapse navbar-collapse" id="navbarNav">
+                <ul class="navbar-nav">
+                    <li class="nav-item">
+                        <a class="nav-link active" href="/dashboard">대시보드</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="/swagger-ui.html" target="_blank">API 문서</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="/actuator/health" target="_blank">헬스 체크</a>
+                    </li>
+                </ul>
+            </div>
+        </div>
+    </nav>
+
+    <div class="container mt-4">
+        <!-- 오류 메시지 표시 -->
+        <div class="alert alert-danger" th:if="${error}" th:text="${error}"></div>
+        
+        <!-- 상태 정보 -->
+        <div class="row mb-4">
+            <div class="col-md-6">
+                <div class="card">
+                    <div class="card-header">
+                        <h5 class="card-title mb-0">Kafka Streams 상태</h5>
+                    </div>
+                    <div class="card-body">
+                        <span class="badge rounded-pill" 
+                              th:classappend="${streamsStatus == 'RUNNING'} ? 'bg-success' : 'bg-danger'"
+                              th:text="${streamsStatus}">상태</span>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-6">
+                <div class="card">
+                    <div class="card-header">
+                        <h5 class="card-title mb-0">토픽 통계</h5>
+                    </div>
+                    <div class="card-body">
+                        <p>총 토픽 수: <span class="badge bg-primary" th:text="${topics.size()}">0</span></p>
+                        <p>단어 수 세기 토픽: <span class="badge bg-info" th:text="${wordCountTopics.size()}">0</span></p>
+                        <p>사용자 데이터 토픽: <span class="badge bg-info" th:text="${userDataTopics.size()}">0</span></p>
+                        <p>트랜잭션 토픽: <span class="badge bg-info" th:text="${transactionTopics.size()}">0</span></p>
+                        <p>기타 토픽: <span class="badge bg-info" th:text="${otherTopics.size()}">0</span></p>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- 토픽 그룹 섹션 -->
+        <div class="row">
+            <!-- 단어 수 세기 토픽 -->
+            <div class="col-md-6 topic-group" th:if="${not #lists.isEmpty(wordCountTopics)}">
+                <div class="card">
+                    <div class="card-header bg-info text-white">
+                        <h5 class="card-title mb-0">단어 수 세기 토픽</h5>
+                    </div>
+                    <div class="card-body topic-list">
+                        <div class="list-group">
+                            <a th:each="topic : ${wordCountTopics}" 
+                               th:href="@{'/api/kafka/topics/' + ${topic} + '/messages'}"
+                               target="_blank"
+                               class="list-group-item list-group-item-action">
+                                <div class="d-flex w-100 justify-content-between">
+                                    <h6 class="mb-1" th:text="${topic}">토픽 이름</h6>
+                                    <small>자세히 보기</small>
+                                </div>
+                            </a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- 사용자 데이터 토픽 -->
+            <div class="col-md-6 topic-group" th:if="${not #lists.isEmpty(userDataTopics)}">
+                <div class="card">
+                    <div class="card-header bg-success text-white">
+                        <h5 class="card-title mb-0">사용자 데이터 토픽</h5>
+                    </div>
+                    <div class="card-body topic-list">
+                        <div class="list-group">
+                            <a th:each="topic : ${userDataTopics}" 
+                               th:href="@{'/api/kafka/topics/' + ${topic} + '/messages'}"
+                               target="_blank"
+                               class="list-group-item list-group-item-action">
+                                <div class="d-flex w-100 justify-content-between">
+                                    <h6 class="mb-1" th:text="${topic}">토픽 이름</h6>
+                                    <small>자세히 보기</small>
+                                </div>
+                            </a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- 트랜잭션 토픽 -->
+            <div class="col-md-6 topic-group" th:if="${not #lists.isEmpty(transactionTopics)}">
+                <div class="card">
+                    <div class="card-header bg-warning">
+                        <h5 class="card-title mb-0">트랜잭션 토픽</h5>
+                    </div>
+                    <div class="card-body topic-list">
+                        <div class="list-group">
+                            <a th:each="topic : ${transactionTopics}" 
+                               th:href="@{'/api/kafka/topics/' + ${topic} + '/messages'}"
+                               target="_blank"
+                               class="list-group-item list-group-item-action">
+                                <div class="d-flex w-100 justify-content-between">
+                                    <h6 class="mb-1" th:text="${topic}">토픽 이름</h6>
+                                    <small>자세히 보기</small>
+                                </div>
+                            </a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- 기타 토픽 -->
+            <div class="col-md-6 topic-group" th:if="${not #lists.isEmpty(otherTopics)}">
+                <div class="card">
+                    <div class="card-header bg-secondary text-white">
+                        <h5 class="card-title mb-0">기타 토픽</h5>
+                    </div>
+                    <div class="card-body topic-list">
+                        <div class="list-group">
+                            <a th:each="topic : ${otherTopics}" 
+                               th:href="@{'/api/kafka/topics/' + ${topic} + '/messages'}"
+                               target="_blank"
+                               class="list-group-item list-group-item-action">
+                                <div class="d-flex w-100 justify-content-between">
+                                    <h6 class="mb-1" th:text="${topic}">토픽 이름</h6>
+                                    <small>자세히 보기</small>
+                                </div>
+                            </a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- 토픽이 없는 경우 -->
+        <div class="alert alert-info" th:if="${#lists.isEmpty(topics)}">
+            <h4 class="alert-heading">토픽이 없습니다!</h4>
+            <p>Kafka 브로커에 토픽이 없거나 연결할 수 없습니다. 브로커가 실행 중인지 확인하세요.</p>
+            <hr>
+            <p class="mb-0">토픽을 생성하려면 Kafka 명령줄 도구를 사용하거나 API를 통해 생성할 수 있습니다.</p>
+        </div>
+    </div>
+    
+    <footer class="bg-light py-3 mt-5">
+        <div class="container text-center">
+            <p class="text-muted mb-0">Kafka Basic 프로젝트 대시보드 &copy; 2025</p>
+        </div>
+    </footer>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+</body>
+</html>
